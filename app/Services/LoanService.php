@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Models\Loan;
 use App\Models\ReceivedRepayment;
 use App\Models\ScheduledRepayment;
-use InvalidArgumentException;
-use Illuminate\Support\Carbon;
 use App\Models\User;
+use Carbon\Carbon;
+use InvalidArgumentException;
 
 class LoanService
 {
@@ -28,15 +28,21 @@ class LoanService
             throw new InvalidArgumentException("Invalid currency code: {$currencyCode}");
         }
 
+        try {
+            $parsedProcessedAt = Carbon::parse($processedAt);
+        } catch (\Exception $e) {
+            throw new InvalidArgumentException("Invalid processedAt date format: {$processedAt}");
+        }
+
         $loan = Loan::create([
-            'user_id' => $userId,
+            'user_id' => $user->id,
             'amount' => $amount,
             'outstanding_amount' => $amount,
             'terms' => $terms,
             'currency_code' => $currencyCode,
-            'processed_at' => $processedAt,
+            'processed_at' => $parsedProcessedAt,
             'status' => Loan::STATUS_DUE,
-            'created_at' => $processedAt,
+            'created_at' => $parsedProcessedAt,
         ]);
 
         $monthlyAmount = $amount / $terms;
@@ -44,7 +50,7 @@ class LoanService
             ScheduledRepayment::create([
                 'loan_id' => $loan->id,
                 'amount' => $monthlyAmount,
-                'due_date' => $processedAt->copy()->addMonths($i),
+                'due_date' => $parsedProcessedAt->copy()->addMonths($i),
                 'status' => ScheduledRepayment::STATUS_DUE,
             ]);
         }
@@ -88,12 +94,8 @@ class LoanService
         }
 
         $repayment = $pendingRepayments->first();
-        $totalPaidForLoan = ReceivedRepayment::where('loan_id', $loan->id)->sum('amount');
-        $remainingRepaymentAmount = $repayment->amount - ($totalPaidForLoan % $repayment->amount);
-
-        if ($remainingRepaymentAmount <= 0) {
-            $remainingRepaymentAmount = $repayment->amount;
-        }
+        $totalPaid = $loan->receivedRepayments()->sum('amount');
+        $remainingRepaymentAmount = $repayment->amount - ($totalPaid % $repayment->amount ?: $repayment->amount);
 
         $paymentAmount = min($amount, $remainingRepaymentAmount);
 
@@ -105,10 +107,10 @@ class LoanService
 
         $loan->decrement('outstanding_amount', $paymentAmount);
 
-        $totalPaidForRepayment = ReceivedRepayment::where('loan_id', $loan->id)->sum('amount');
-        if ($totalPaidForRepayment >= $repayment->amount) {
+        $totalPaidAfter = $loan->receivedRepayments()->sum('amount');
+        if ($totalPaidAfter >= $repayment->amount) {
             $repayment->update(['status' => ScheduledRepayment::STATUS_REPAID]);
-        } elseif ($totalPaidForRepayment > 0) {
+        } elseif ($totalPaidAfter > 0) {
             $repayment->update(['status' => ScheduledRepayment::STATUS_PARTIAL]);
         }
 

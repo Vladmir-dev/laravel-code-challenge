@@ -21,7 +21,7 @@ class CreateLoansTable extends Migration
             $table->integer('outstanding_amount');
             $table->string('currency_code');
             $table->date('processed_at');
-            $table->string('status');
+            $table->string('status')->default('due');
             $table->timestamps();
             $table->softDeletes();
 
