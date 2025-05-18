@@ -27,6 +27,9 @@ class CreateReceivedRepaymentsTable extends Migration
                 ->on('loans')
                 ->onUpdate('cascade')
                 ->onDelete('restrict');
+            $table->decimal('amount', 10, 2);
+            $table->dateTime('received_at');
+            $table->timestamps();
         });
     }
 

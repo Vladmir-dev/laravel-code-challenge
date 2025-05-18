@@ -23,8 +23,15 @@ class ReceivedRepayment extends Model
      * @var array
      */
     protected $fillable = [
-        //
+       'loan_id',
+        'amount',
+        'received_at',
+        
     ];
+    
+    protected $casts = [
+           'received_at' => 'datetime',
+       ];
 
     /**
      * A Received Repayment belongs to a Loan

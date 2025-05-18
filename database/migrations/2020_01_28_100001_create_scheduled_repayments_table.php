@@ -27,6 +27,14 @@ class CreateScheduledRepaymentsTable extends Migration
                 ->on('loans')
                 ->onUpdate('cascade')
                 ->onDelete('restrict');
+            $table->decimal('amount', 10, 2);
+            $table->dateTime('due_date');
+            $table->enum('status', [
+                'due',
+                'partial',
+                'repaid'
+            ])->default('due');
+            $table->timestamps();
         });
     }
 
